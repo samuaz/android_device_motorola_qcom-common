@@ -32,16 +32,15 @@ TARGET_BOARD_PLATFORM := msm8960
 TARGET_NO_BOOTLOADER := true
 TARGET_BOOTLOADER_BOARD_NAME := MSM8960
 
-TARGET_ARCH := arm
+TARGET_GLOBAL_CFLAGS += -mfpu=neon -mfloat-abi=softfp
+TARGET_GLOBAL_CPPFLAGS += -mfpu=neon -mfloat-abi=softfp
 TARGET_CPU_ABI := armeabi-v7a
 TARGET_CPU_ABI2 := armeabi
-TARGET_ARCH_VARIANT := armv7-a-neon
-TARGET_ARCH_VARIANT_CPU := cortex-a9
-TARGET_CPU_VARIANT := krait
 TARGET_CPU_SMP := true
-COMMON_GLOBAL_CFLAGS += -D__ARM_USE_PLD -D__ARM_CACHE_LINE_SIZE=64
-TARGET_GLOBAL_CFLAGS += -mfpu=neon-vfpv4 -mfloat-abi=softfp
-TARGET_GLOBAL_CPPFLAGS += -mfpu=neon-vfpv4 -mfloat-abi=softfp
+TARGET_ARCH := arm
+TARGET_ARCH_VARIANT := armv7-a-neon
+TARGET_CPU_VARIANT := krait
+TARGET_MPDECISION_BOOST_SOCKET := /dev/socket/mpdecision/touchboost
 
 # Krait optimizations
 TARGET_USE_KRAIT_BIONIC_OPTIMIZATION := true
@@ -50,6 +49,13 @@ TARGET_KRAIT_BIONIC_PLDOFFS := 10
 TARGET_KRAIT_BIONIC_PLDTHRESH := 10
 TARGET_KRAIT_BIONIC_BBTHRESH := 64
 TARGET_KRAIT_BIONIC_PLDSIZE := 64
+
+# Enable various prefetch optimizations
+COMMON_GLOBAL_CFLAGS += -D__ARM_USE_PLD -D__ARM_CACHE_LINE_SIZE=64
+
+# Compiler Optimization
+ARCH_ARM_HIGH_OPTIMIZATION := true
+TARGET_USE_O3 := true 
 
 # Wifi related defines
 BOARD_HAS_QCOM_WLAN := true
@@ -75,8 +81,8 @@ BOARD_FLASH_BLOCK_SIZE := 131072
 BOARD_HAS_LARGE_FILESYSTEM := true
 
 # Enable WEBGL in WebKit
-ENABLE_WEBGL := true
-TARGET_FORCE_CPU_UPLOAD := true
+#ENABLE_WEBGL := true
+#TARGET_FORCE_CPU_UPLOAD := true
 
 # Global flags
 COMMON_GLOBAL_CFLAGS += -DQCOM_HARDWARE -DMOTOROLA_UIDS
@@ -93,14 +99,26 @@ TARGET_PROVIDES_LIBLIGHT := true
 # QCOM enhanced A/V
 TARGET_ENABLE_QC_AV_ENHANCEMENTS := true
 
-# Graphics
-TARGET_QCOM_DISPLAY_VARIANT ?= caf
-USE_OPENGL_RENDERER := true
-TARGET_USES_C2D_COMPOSITION := true
-TARGET_USES_ION := true
-BOARD_EGL_CFG := $(LOCAL_PATH)/config/egl.cfg
+# Kernel time optimization
+# remove if causing issues with short/long presses
+#KERNEL_HAS_GETTIMEOFDAY_HELPER := true
+
+# Use CAF media driver variant for 8960
+TARGET_QCOM_MEDIA_VARIANT := caf
+
 # Use retire fence from MDP driver
 TARGET_DISPLAY_USE_RETIRE_FENCE := true
+
+# Graphics
+TARGET_QCOM_DISPLAY_VARIANT ?= caf
+BOARD_EGL_CFG := $(LOCAL_PATH)/config/egl.cfg
+#BOARD_USES_HGL := true
+#BOARD_USES_OVERLAY := true
+USE_OPENGL_RENDERER := true
+TARGET_USES_ION := true
+TARGET_USES_OVERLAY := true
+TARGET_USES_SF_BYPASS := true
+TARGET_USES_C2D_COMPOSITION := true
 
 # Bluetooth
 BOARD_HAVE_BLUETOOTH := true

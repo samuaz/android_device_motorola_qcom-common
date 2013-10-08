@@ -154,13 +154,8 @@ PRODUCT_COPY_FILES += \
 
 # QCOM Display
 PRODUCT_PROPERTY_OVERRIDES += \
-    debug.egl.hw=1 \
-    debug.sf.hw=1 \
-    persist.sys.ui.hw=true \
-    debug.composition.type=dyn \
     persist.hwc.mdpcomp.enable=true \
-    debug.mdpcomp.logs=0 \
-    debug.enabletr=0
+    debug.mdpcomp.logs=0
 
 # QCOM Display
 PRODUCT_PACKAGES += \
@@ -234,7 +229,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
     qcom.hw.aac.encoder=true \
     af.resampler.quality=255 \
     persist.audio.lowlatency.rec=false \
-    ro.opengles.version=131072
+    ro.opengles.version=196608
 
 # Misc
 PRODUCT_PROPERTY_OVERRIDES += \
@@ -256,5 +251,8 @@ PRODUCT_PROPERTY_OVERRIDES += \
     persist.radio.apm_sim_not_pwdn=1 \
     persist.radio.call_type=1 \
     ro.config.vc_call_vol_steps=7
+    
+PRODUCT_PROPERTY_OVERRIDES += \
+        debug.egl.recordable.rgba8888=1
 
 PRODUCT_BUILD_PROP_OVERRIDES += BUILD_UTC_DATE=0

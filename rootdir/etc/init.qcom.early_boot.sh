@@ -96,7 +96,7 @@ case "$1" in
         case "$soc_hwid" in
             87)
                 #8960
-                setprop debug.composition.type dyn
+                #setprop debug.composition.type dyn
                 ;;
             153 | 154 | 155 | 156 | 157 | 138 | 179 | 180 | 181)
                 #8064 V2 PRIME | 8930AB | 8630AB | 8230AB | 8030AB | 8960AB | 8130/AA/AB

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2012 Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009-2012, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -9,7 +9,7 @@
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials provided
  *       with the distribution.
- *     * Neither the name of Code Aurora Forum, Inc. nor the names of its
+ *     * Neither the name of The Linux Foundation nor the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
@@ -57,6 +57,7 @@
 #include <loc_eng_dmn_conn_handler.h>
 #include <loc_eng_msg.h>
 #include <loc_eng_msg_id.h>
+#include <loc_eng_nmea.h>
 #include <msg_q.h>
 #include <loc.h>
 
@@ -83,6 +84,7 @@ static loc_param_s_type loc_parameter_table[] =
   {"INTERMEDIATE_POS",               &gps_conf.INTERMEDIATE_POS,               NULL, 'n'},
   {"ACCURACY_THRES",                 &gps_conf.ACCURACY_THRES,                 NULL, 'n'},
   {"ENABLE_WIPER",                   &gps_conf.ENABLE_WIPER,                   NULL, 'n'},
+  {"NMEA_PROVIDER",                  &gps_conf.NMEA_PROVIDER,                  NULL, 'n'},
   {"SUPL_VER",                       &gps_conf.SUPL_VER,                       NULL, 'n'},
   {"CAPABILITIES",                   &gps_conf.CAPABILITIES,                   NULL, 'n'},
   {"GYRO_BIAS_RANDOM_WALK",          &gps_conf.GYRO_BIAS_RANDOM_WALK,          &gps_conf.GYRO_BIAS_RANDOM_WALK_VALID, 'f'},
@@ -111,6 +113,7 @@ static void loc_default_parameters(void)
    gps_conf.INTERMEDIATE_POS = 0;
    gps_conf.ACCURACY_THRES = 0;
    gps_conf.ENABLE_WIPER = 0;
+   gps_conf.NMEA_PROVIDER = 0;
    gps_conf.SUPL_VER = 0x10000;
    gps_conf.CAPABILITIES = 0x7;
 
@@ -211,7 +214,8 @@ static void loc_eng_process_conn_request(loc_eng_data_s_type &loc_eng_data,
 static void loc_eng_agps_close_status(loc_eng_data_s_type &loc_eng_data, int is_succ);
 static void loc_eng_handle_engine_down(loc_eng_data_s_type &loc_eng_data) ;
 static void loc_eng_handle_engine_up(loc_eng_data_s_type &loc_eng_data) ;
-static int loc_eng_set_engine_lock(loc_eng_data_s_type &loc_eng_data, unsigned int engine_lock);
+static int loc_eng_set_privacy(loc_eng_data_s_type &loc_eng_data,
+                               int8_t privacy_setting);
 
 static char extra_data[100];
 /*********************************************************************
@@ -270,17 +274,19 @@ int loc_eng_init(loc_eng_data_s_type &loc_eng_data, LocCallbacks* callbacks,
                   void (*loc_external_msg_sender) (void*, void*))
 
 {
+    int ret_val =-1;
+
     ENTRY_LOG_CALLFLOW();
     if (NULL == callbacks || 0 == event) {
         LOC_LOGE("loc_eng_init: bad parameters cb %p eMask %d", callbacks, event);
-        EXIT_LOG(%d, 0);
-        return NULL;
+        EXIT_LOG(%d, ret_val);
+        return ret_val;
     }
 
     if (NULL != loc_eng_data.context) {
-        // Current loc_eng_cleanup keeps context initialized,
-        // so must enable here too.
-        loc_eng_set_engine_lock(loc_eng_data, 1);
+        // Current loc_eng_cleanup keeps context initialized, so must enable
+        // here too.
+        loc_eng_set_privacy(loc_eng_data, 1);
     }
 
     STATE_CHECK((NULL == loc_eng_data.context),
@@ -302,7 +308,7 @@ int loc_eng_init(loc_eng_data_s_type &loc_eng_data, LocCallbacks* callbacks,
     loc_eng_data.nmea_cb      = callbacks->nmea_cb;
     loc_eng_data.acquire_wakelock_cb = callbacks->acquire_wakelock_cb;
     loc_eng_data.release_wakelock_cb = callbacks->release_wakelock_cb;
-
+    loc_eng_data.request_utc_time_cb = callbacks->request_utc_time_cb;
     loc_eng_data.intermediateFix = gps_conf.INTERMEDIATE_POS;
 
     // initial states taken care of by the memset above
@@ -310,12 +316,21 @@ int loc_eng_init(loc_eng_data_s_type &loc_eng_data, LocCallbacks* callbacks,
     // loc_eng_data.fix_session_status -- GPS_STATUS_NONE;
     // loc_eng_data.mute_session_state -- LOC_MUTE_SESS_NONE;
 
+    if ((event & LOC_API_ADAPTER_BIT_NMEA_1HZ_REPORT) && (gps_conf.NMEA_PROVIDER == NMEA_PROVIDER_AP))
+    {
+        event = event ^ LOC_API_ADAPTER_BIT_NMEA_1HZ_REPORT; // unregister for modem NMEA report
+        loc_eng_data.generateNmea = true;
+    }
+    else
+    {
+        loc_eng_data.generateNmea = false;
+    }
+
     LocEng locEngHandle(&loc_eng_data, event, loc_eng_data.acquire_wakelock_cb,
                         loc_eng_data.release_wakelock_cb, loc_eng_msg_sender, loc_external_msg_sender,
                         callbacks->location_ext_parser, callbacks->sv_ext_parser);
     loc_eng_data.client_handle = LocApiAdapter::getLocApiAdapter(locEngHandle);
 
-    int ret_val =-1;
     if (NULL == loc_eng_data.client_handle) {
         // drop the context and declare failure
         ((LocEngContext*)(loc_eng_data.context))->drop();
@@ -324,16 +339,16 @@ int loc_eng_init(loc_eng_data_s_type &loc_eng_data, LocCallbacks* callbacks,
         LOC_LOGD("loc_eng_init created client, id = %p\n", loc_eng_data.client_handle);
 
         // call reinit to send initialization messages
-        int tries = 30;
-        while (tries > 0 &&
-                LOC_API_ADAPTER_ERR_SUCCESS != (ret_val = loc_eng_reinit(loc_eng_data))) {
-            tries--;
-            LOC_LOGD("loc_eng_init client open failed, %d more tries", tries);
-            sleep(1);
-        }
+       int tries = 30;
+       while (tries > 0 &&
+              LOC_API_ADAPTER_ERR_SUCCESS != (ret_val = loc_eng_reinit(loc_eng_data))) {
+           tries--;
+           LOC_LOGD("loc_eng_init client open failed, %d more tries", tries);
+           sleep(1);
+       }
 
         if (LOC_API_ADAPTER_ERR_SUCCESS == ret_val) {
-            loc_eng_set_engine_lock(loc_eng_data, 1);
+            loc_eng_set_privacy(loc_eng_data, 1);
         }
     }
 
@@ -448,7 +463,7 @@ void loc_eng_cleanup(loc_eng_data_s_type &loc_eng_data)
         loc_eng_stop(loc_eng_data);
     }
 
-    loc_eng_set_engine_lock(loc_eng_data, 0);
+    loc_eng_set_privacy(loc_eng_data, 0);
 
 #if 0 // can't afford to actually clean up, for many reason.
 
@@ -683,7 +698,6 @@ int loc_eng_inject_time(loc_eng_data_s_type &loc_eng_data, GpsUtcTime time,
                                  uncertainty));
     msg_q_snd((void*)((LocEngContext*)(loc_eng_data.context))->deferred_q,
               msg, loc_eng_free_msg);
-
     EXIT_LOG(%d, 0);
     return 0;
 }
@@ -853,6 +867,11 @@ void loc_eng_agps_init(loc_eng_data_s_type &loc_eng_data, AGpsCallbacks* callbac
     STATE_CHECK((NULL == loc_eng_data.agps_status_cb),
                 "agps instance already initialized",
                 return);
+    if(callbacks == NULL) {
+        LOC_LOGE("loc_eng_agps_init: bad parameters cb %p", callbacks);
+        EXIT_LOG(%s, VOID_RET);
+        return;
+    }
     loc_eng_data.agps_status_cb = callbacks->status_cb;
 
     loc_eng_data.agnss_nif = new AgpsStateMachine(loc_eng_data.agps_status_cb,
@@ -870,10 +889,14 @@ void loc_eng_agps_init(loc_eng_data_s_type &loc_eng_data, AGpsCallbacks* callbac
         char baseband[PROPERTY_VALUE_MAX];
         property_get("ro.baseband", baseband, "msm");
         if ((strcmp(baseband,"svlte2a") == 0) ||
+            (strcmp(baseband,"sglte") == 0) ||
             (strcmp(baseband,"msm") == 0))
         {
             loc_eng_dmn_conn_loc_api_server_launch(callbacks->create_thread_cb,
                                                    NULL, NULL, &loc_eng_data);
+        } else {
+            LOC_LOGD("%s:%d] loc_eng_dmn_conn_loc_api_server was not initialized.baseband = %s\n",
+            __func__, __LINE__, baseband);
         }
     }
 #endif /* FEATURE_GNSS_BIT_API */
@@ -1489,13 +1512,21 @@ static void loc_eng_deferred_action_thread(void* arg)
                     }
                     // what's in the else if is... (line by line)
                     // 1. this is a good fix; or
+                    //   1.1 there is source info; or
+                    //   1.1.1 this is from hybrid provider;
+                    //   1.2 it is a Satellite fix; or
+                    //   1.2.1 it is a sensor fix
                     // 2. (must be intermediate fix... implicit)
                     //   2.1 we accepte intermediate; and
                     //   2.2 it is NOT the case that
                     //   2.2.1 there is inaccuracy; and
                     //   2.2.2 we care about inaccuracy; and
                     //   2.2.3 the inaccuracy exceeds our tolerance
-                    else if (LOC_SESS_SUCCESS == rpMsg->status ||
+                    else if ((LOC_SESS_SUCCESS == rpMsg->status &&
+                              (((LOCATION_HAS_SOURCE_INFO & rpMsg->location.flags) &&
+                                ULP_LOCATION_IS_FROM_HYBRID == rpMsg->location.position_source) ||
+                               ((LOC_POS_TECH_MASK_SATELLITE & rpMsg->technology_mask) ||
+                                (LOC_POS_TECH_MASK_SENSORS & rpMsg->technology_mask)))) ||
                              (LOC_SESS_INTERMEDIATE == loc_eng_data_p->intermediateFix &&
                               !((rpMsg->location.flags & GPS_LOCATION_HAS_ACCURACY) &&
                                 (gps_conf.ACCURACY_THRES != 0) &&
@@ -1520,6 +1551,11 @@ static void loc_eng_deferred_action_thread(void* arg)
                     loc_eng_data_p->client_handle->setInSession(false);
                 }
 
+                if (loc_eng_data_p->generateNmea && rpMsg->location.position_source == ULP_LOCATION_IS_FROM_GNSS)
+                {
+                    loc_eng_nmea_generate_pos(loc_eng_data_p, rpMsg->location, rpMsg->locationExtended);
+                }
+
                 // Free the allocated memory for rawData
                 GpsLocation* gp = (GpsLocation*)&(rpMsg->location);
                 if (gp != NULL && gp->rawData != NULL)
@@ -1540,6 +1576,12 @@ static void loc_eng_deferred_action_thread(void* arg)
                     loc_eng_data_p->sv_status_cb((GpsSvStatus*)&(rsMsg->svStatus),
                                                  (void*)rsMsg->svExt);
                 }
+
+                if (loc_eng_data_p->generateNmea)
+                {
+                    loc_eng_nmea_generate_sv(loc_eng_data_p, rsMsg->svStatus, rsMsg->locationExtended);
+                }
+
             }
             break;
 
@@ -1634,7 +1676,8 @@ static void loc_eng_deferred_action_thread(void* arg)
         {
             loc_eng_msg_request_wifi *wrqMsg = (loc_eng_msg_request_wifi *)msg;
             if (wrqMsg->senderId == LOC_ENG_IF_REQUEST_SENDER_ID_QUIPC ||
-                wrqMsg->senderId == LOC_ENG_IF_REQUEST_SENDER_ID_MSAPM) {
+                wrqMsg->senderId == LOC_ENG_IF_REQUEST_SENDER_ID_MSAPM ||
+                wrqMsg->senderId == LOC_ENG_IF_REQUEST_SENDER_ID_MSAPU) {
               AgpsStateMachine* stateMachine = loc_eng_data_p->wifi_nif;
               WIFISubscriber subscriber(stateMachine, wrqMsg->ssid, wrqMsg->password, wrqMsg->senderId);
               stateMachine->subscribeRsrc((Subscriber*)&subscriber);
@@ -1662,6 +1705,14 @@ static void loc_eng_deferred_action_thread(void* arg)
             break;
 
         case LOC_ENG_MSG_REQUEST_TIME:
+            if (loc_eng_data_p->request_utc_time_cb != NULL)
+            {
+                loc_eng_data_p->request_utc_time_cb();
+            }
+            else
+            {
+                LOC_LOGE("%s] ERROR: Callback function for request_time is NULL", __func__);
+            }
             break;
 
         case LOC_ENG_MSG_REQUEST_POSITION:
@@ -1792,10 +1843,10 @@ static void loc_eng_deferred_action_thread(void* arg)
             }
         break;
 
-        case LOC_ENG_MSG_ENGINE_LOCK:
+        case LOC_ENG_MSG_PRIVACY:
         {
-            loc_eng_msg_engine_lock *engineLockMsg = (loc_eng_msg_engine_lock*)msg;
-            loc_eng_data_p->client_handle->setEngineLock(engineLockMsg->engine_lock);
+            loc_eng_msg_privacy *privacyMsg = (loc_eng_msg_privacy*)msg;
+            loc_eng_data_p->client_handle->setPrivacy(privacyMsg->privacy_setting);
         }
         break;
 
@@ -1851,15 +1902,15 @@ int loc_eng_ulp_init(loc_eng_data_s_type &loc_eng_data, const ulpInterface * loc
 {
     ENTRY_LOG();
     int ret_val=-1;
-
-    if(loc_eng_ulpInf != NULL)
+    if((loc_eng_ulpInf != NULL) && (((ulpInterface *)loc_eng_ulpInf)->init != NULL))
     {
         // Initialize the ULP interface
         ((ulpInterface *)loc_eng_ulpInf)->init(loc_eng_data);
         loc_eng_data.ulp_initialized = TRUE;
+        ret_val = 0;
     }
-    ret_val = 0;
-exit:
+    else
+        LOC_LOGE("ulp not initialized. NULL parameter");
     EXIT_LOG(%d, ret_val);
     return ret_val;
 }
@@ -2013,9 +2064,14 @@ SIDE EFFECTS
 ===========================================================================*/
 int loc_eng_ulp_phone_context_init(loc_eng_data_s_type &loc_eng_data,UlpPhoneContextCallbacks *callback)
 {
+    int ret_val = -1;
     ENTRY_LOG();
-    loc_eng_data.ulp_phone_context_req_cb = callback->ulp_request_phone_context_cb ;
-    int ret_val =0;
+    if(callback != NULL) {
+        loc_eng_data.ulp_phone_context_req_cb = callback->ulp_request_phone_context_cb ;
+        ret_val = 0;
+    }
+    else
+        LOC_LOGE("loc_eng_ulp_phone_context_init: bad parameters cb %p", callback);
     EXIT_LOG(%d, ret_val);
     return ret_val;
 }
@@ -2039,11 +2095,16 @@ SIDE EFFECTS
 int loc_eng_ulp_network_init(loc_eng_data_s_type &loc_eng_data,
                              UlpNetworkLocationCallbacks *callbacks)
 {
-   ENTRY_LOG_CALLFLOW();
-   loc_eng_data.ulp_network_callback = callbacks->ulp_network_location_request_cb;
-   int ret_val =0;
-   EXIT_LOG(%d, ret_val);
-   return ret_val;
+    int ret_val = -1;
+    ENTRY_LOG_CALLFLOW();
+    if(callbacks != NULL) {
+        loc_eng_data.ulp_network_callback = callbacks->ulp_network_location_request_cb;
+        ret_val = 0;
+    }
+    else
+        LOC_LOGE("loc_eng_ulp_network_init: bad parameters cb %p", callbacks);
+    EXIT_LOG(%d, ret_val);
+    return ret_val;
 }
 
 
@@ -2118,30 +2179,31 @@ int loc_eng_read_config(void)
 }
 
 /*===========================================================================
-FUNCTION loc_eng_set_engine_lock
+FUNCTION    loc_eng_set_privacy
 
 DESCRIPTION
-    Sets the engine lock (1. GPS on, 0. GPS off).
+   Sets the privacy lock setting (1. GPS on, 0. GPS off).
 
 DEPENDENCIES
-    None
+   None
 
 RETURN VALUE
-    0: success
+   0: success
 
 SIDE EFFECTS
-    N/A
+   N/A
 
 ===========================================================================*/
-static int loc_eng_set_engine_lock(loc_eng_data_s_type &loc_eng_data,
-            unsigned int engine_lock)
+static int loc_eng_set_privacy(loc_eng_data_s_type &loc_eng_data,
+                               int8_t privacy_setting)
 {
     ENTRY_LOG();
     INIT_CHECK(loc_eng_data.context, return -1);
-    loc_eng_msg_engine_lock *msg(
-            new loc_eng_msg_engine_lock(&loc_eng_data, engine_lock));
+    loc_eng_msg_privacy *msg(
+        new loc_eng_msg_privacy(&loc_eng_data, privacy_setting));
     msg_q_snd((void*)((LocEngContext*)(loc_eng_data.context))->deferred_q,
-            msg, loc_eng_free_msg);
+              msg, loc_eng_free_msg);
+
     EXIT_LOG(%d, 0);
     return 0;
 }
