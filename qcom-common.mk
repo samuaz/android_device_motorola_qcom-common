@@ -59,8 +59,7 @@ PRODUCT_PACKAGES += \
 # Motorola
 PRODUCT_PACKAGES += \
     aplogd \
-    modemlog \
-    batt_health
+    modemlog
 
 # Misc
 PRODUCT_PACKAGES += \
@@ -80,17 +79,23 @@ PRODUCT_PACKAGES += qrngd
 PRODUCT_PACKAGES += \
     copybit.msm8960 \
     gralloc.msm8960 \
-    camera.msm8960 \
     hwcomposer.msm8960 \
     power.msm8960
-
-# GPS
-PRODUCT_PACKAGES += \
-    gps.msm8960
 
 # Misc
 PRODUCT_PACKAGES += \
     com.android.future.usb.accessory
+
+# Crda
+PRODUCT_PACKAGES += \
+    crda \
+    linville.key.pub.pem \
+    regulatory.bin
+
+# Qcom SoftAP
+PRODUCT_PACKAGES += \
+    libQWiFiSoftApCfg \
+    libqsap_sdk
 
 # Live Wallpapers
 PRODUCT_PACKAGES += \
@@ -141,10 +146,6 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/scripts/qcamerasrvwrapper.sh:system/bin/qcamerasrvwrapper.sh \
     $(LOCAL_PATH)/scripts/sensorsqcomwrapper.sh:system/bin/sensorsqcomwrapper.sh \
 
-# GPS configuration
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/config/gps.conf:system/etc/gps.conf
-
 # We have enough storage space to hold precise GC data
 PRODUCT_TAGS += dalvik.gc.type-precise
 
@@ -155,7 +156,8 @@ PRODUCT_COPY_FILES += \
 # QCOM Display
 PRODUCT_PROPERTY_OVERRIDES += \
     persist.hwc.mdpcomp.enable=true \
-    debug.mdpcomp.logs=0
+    debug.mdpcomp.logs=0 \
+    debug.enabletr=1
 
 # QCOM Display
 PRODUCT_PACKAGES += \
