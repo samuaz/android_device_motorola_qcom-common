@@ -100,6 +100,10 @@ TARGET_PROVIDES_LIBLIGHT := true
 # QCOM enhanced A/V
 TARGET_ENABLE_QC_AV_ENHANCEMENTS := true
 
+# Kernel time optimization
+# disable for now
+#KERNEL_HAS_GETTIMEOFDAY_HELPER := true 
+
 # Graphics
 #BOARD_USES_HGL := true
 #BOARD_USES_OVERLAY := true
