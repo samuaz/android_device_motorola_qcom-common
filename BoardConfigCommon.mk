@@ -28,10 +28,15 @@ BOARD_VENDOR := motorola-msm8960
 # Platform
 TARGET_BOARD_PLATFORM := msm8960
 
+#use ext4
+TARGET_USERIMAGES_USE_EXT4 := true
+
 # Bootloader
 TARGET_NO_BOOTLOADER := true
 TARGET_BOOTLOADER_BOARD_NAME := MSM8960
+#TARGET_ARM_EABI_GCC_VERSION := 4.8
 
+# Architecture
 TARGET_ARCH := arm
 TARGET_CPU_ABI := armeabi-v7a
 TARGET_CPU_ABI2 := armeabi
@@ -39,9 +44,9 @@ TARGET_ARCH_VARIANT := armv7-a-neon
 TARGET_ARCH_VARIANT_CPU := cortex-a9
 TARGET_CPU_VARIANT := krait
 TARGET_CPU_SMP := true
-TARGET_GLOBAL_CFLAGS += -mfpu=neon -mfloat-abi=softfp
-TARGET_GLOBAL_CPPFLAGS += -mfpu=neon -mfloat-abi=softfp
-TARGET_MPDECISION_BOOST_SOCKET := /dev/socket/mpdecision/touchboost
+#TARGET_GLOBAL_CFLAGS += -mfpu=neon -mfloat-abi=softfp
+#TARGET_GLOBAL_CPPFLAGS += -mfpu=neon -mfloat-abi=softfp
+#TARGET_MPDECISION_BOOST_SOCKET := /dev/socket/mpdecision/touchboost
 
 # Krait optimizations
 TARGET_USE_KRAIT_BIONIC_OPTIMIZATION := true
@@ -94,6 +99,8 @@ BOARD_HAS_NO_SELECT_BUTTON := true
 
 # QCOM hardware
 BOARD_USES_QCOM_HARDWARE := true
+TARGET_QCOM_DISPLAY_VARIANT ?= caf
+TARGET_QCOM_AUDIO_VARIANT := caf
 
 TARGET_PROVIDES_LIBLIGHT := true
 
@@ -107,16 +114,13 @@ TARGET_ENABLE_QC_AV_ENHANCEMENTS := true
 # Graphics
 #BOARD_USES_HGL := true
 #BOARD_USES_OVERLAY := true
-TARGET_QCOM_DISPLAY_VARIANT ?= caf
+#TARGET_USES_OVERLAY := true
+#TARGET_USES_SF_BYPASS := true
 USE_OPENGL_RENDERER := true
+TARGET_DISPLAY_USE_RETIRE_FENCE := true
 TARGET_USES_C2D_COMPOSITION := true
 TARGET_USES_ION := true
 BOARD_EGL_CFG := $(LOCAL_PATH)/config/egl.cfg
-TARGET_USES_OVERLAY := true
-TARGET_USES_SF_BYPASS := true
-# Use retire fence from MDP driver
-TARGET_DISPLAY_USE_RETIRE_FENCE := true
-
 
 # Bluetooth
 BOARD_HAVE_BLUETOOTH := true
@@ -131,7 +135,6 @@ BOARD_USES_ALSA_AUDIO := true
 BOARD_USES_FLUENCE_INCALL := true
 BOARD_USES_SEPERATED_AUDIO_INPUT := true
 BOARD_USES_SEPERATED_VOICE_SPEAKER := true
-TARGET_QCOM_AUDIO_VARIANT := caf
 TARGET_USES_QCOM_COMPRESSED_AUDIO := true
 BOARD_USES_MOTOROLA_EMU_AUDIO := true
 
@@ -159,50 +162,3 @@ TW_INTERNAL_STORAGE_PATH := "/data/media"
 TW_INTERNAL_STORAGE_MOUNT_POINT := "data"
 BOARD_HAS_NO_REAL_SDCARD := true
 RECOVERY_SDCARD_ON_DATA := true
-HAVE_SELINUX := true
-
-# SELinux
-BOARD_SEPOLICY_DIRS += \
-	device/motorola/qcom-common/sepolicy
-
-BOARD_SEPOLICY_UNION += \
-	adbd.te \
-	app.te \
-	bluetooth_loader.te \
-	bridge.te \
-	camera.te \
-	device.te \
-	dhcp.te \
-	dnsmasq.te \
-	domain.te \
-	drmserver.te \
-	file_contexts \
-	file.te \
-	hostapd.te \
-	init_shell.te \
-	init.te \
-	libqc-opt.te \
-	mediaserver.te \
-	mpdecision.te \
-	netd.te \
-	netmgrd.te \
-	nfc.te \
-	property_contexts \
-	property.te \
-	qcom.te \
-	qmux.te \
-	radio.te \
-	rild.te \
-	rmt.te \
-	sdcardd.te \
-	sensors.te \
-	shell.te \
-	surfaceflinger.te \
-	system.te \
-	tee.te \
-	te_macros \
-	thermald.te \
-	ueventd.te \
-	vold.te \
-	wpa_supplicant.te \
-	zygote.te
