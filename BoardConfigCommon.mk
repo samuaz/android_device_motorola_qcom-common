@@ -28,9 +28,6 @@ BOARD_VENDOR := motorola-msm8960
 # Platform
 TARGET_BOARD_PLATFORM := msm8960
 
-#use ext4
-TARGET_USERIMAGES_USE_EXT4 := true
-
 # Bootloader
 TARGET_NO_BOOTLOADER := true
 TARGET_BOOTLOADER_BOARD_NAME := MSM8960
@@ -44,9 +41,9 @@ TARGET_ARCH_VARIANT := armv7-a-neon
 TARGET_ARCH_VARIANT_CPU := cortex-a9
 TARGET_CPU_VARIANT := krait
 TARGET_CPU_SMP := true
-#TARGET_GLOBAL_CFLAGS += -mfpu=neon -mfloat-abi=softfp
-#TARGET_GLOBAL_CPPFLAGS += -mfpu=neon -mfloat-abi=softfp
-#TARGET_MPDECISION_BOOST_SOCKET := /dev/socket/mpdecision/touchboost
+TARGET_GLOBAL_CFLAGS += -mfpu=neon -mfloat-abi=softfp
+TARGET_GLOBAL_CPPFLAGS += -mfpu=neon -mfloat-abi=softfp
+TARGET_MPDECISION_BOOST_SOCKET := /dev/socket/mpdecision/touchboost
 
 # Krait optimizations
 TARGET_USE_KRAIT_BIONIC_OPTIMIZATION := true
@@ -65,6 +62,7 @@ TARGET_USE_O3 := true
 
 # Wifi related defines
 BOARD_HAS_QCOM_WLAN := true
+BOARD_HAS_QCOM_WLAN_SDK := true
 WPA_SUPPLICANT_VERSION := VER_0_8_X
 BOARD_WPA_SUPPLICANT_DRIVER := NL80211
 BOARD_HOSTAPD_DRIVER := NL80211
@@ -107,10 +105,6 @@ TARGET_PROVIDES_LIBLIGHT := true
 # QCOM enhanced A/V
 TARGET_ENABLE_QC_AV_ENHANCEMENTS := true
 
-# Kernel time optimization
-# disable for now
-#KERNEL_HAS_GETTIMEOFDAY_HELPER := true 
-
 # Graphics
 #BOARD_USES_HGL := true
 #BOARD_USES_OVERLAY := true
@@ -120,7 +114,6 @@ USE_OPENGL_RENDERER := true
 TARGET_DISPLAY_USE_RETIRE_FENCE := true
 TARGET_USES_C2D_COMPOSITION := true
 TARGET_USES_ION := true
-BOARD_EGL_CFG := $(LOCAL_PATH)/config/egl.cfg
 
 # Bluetooth
 BOARD_HAVE_BLUETOOTH := true
@@ -143,7 +136,7 @@ TARGET_PROVIDES_CAMERA_HAL := true
 COMMON_GLOBAL_CFLAGS += -DCAMERA_POWERMODE
 
 # Power
-TARGET_PROVIDES_POWERHAL := true
+TARGET_USES_CM_POWERHAL := true
 
 # Number of supplementary service groups allowed by init
 TARGET_NR_SVC_SUPP_GIDS := 28
@@ -162,3 +155,50 @@ TW_INTERNAL_STORAGE_PATH := "/data/media"
 TW_INTERNAL_STORAGE_MOUNT_POINT := "data"
 BOARD_HAS_NO_REAL_SDCARD := true
 RECOVERY_SDCARD_ON_DATA := true
+HAVE_SELINUX := true
+
+# SELinux
+BOARD_SEPOLICY_DIRS += \
+	device/motorola/qcom-common/sepolicy
+
+BOARD_SEPOLICY_UNION += \
+	adbd.te \
+	app.te \
+	bluetooth_loader.te \
+	bridge.te \
+	camera.te \
+	device.te \
+	dhcp.te \
+	dnsmasq.te \
+	domain.te \
+	drmserver.te \
+	file_contexts \
+	file.te \
+	hostapd.te \
+	init_shell.te \
+	init.te \
+	libqc-opt.te \
+	mediaserver.te \
+	mpdecision.te \
+	netd.te \
+	netmgrd.te \
+	nfc.te \
+	property_contexts \
+	property.te \
+	qcom.te \
+	qmux.te \
+	radio.te \
+	rild.te \
+	rmt.te \
+	sdcardd.te \
+	sensors.te \
+	shell.te \
+	surfaceflinger.te \
+	system.te \
+	tee.te \
+	te_macros \
+	thermald.te \
+	ueventd.te \
+	vold.te \
+	wpa_supplicant.te \
+	zygote.te

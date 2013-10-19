@@ -90,6 +90,7 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     crda \
     linville.key.pub.pem \
+    regdbdump \
     regulatory.bin
 
 # Qcom SoftAP
@@ -105,10 +106,6 @@ PRODUCT_PACKAGES += \
     HoloSpiralWallpaper \
     VisualizationWallpapers \
     librs_jni
-
-# QCom Parts
-PRODUCT_PACKAGES += \
-    QCOMParts
 
 # Wifi
 PRODUCT_COPY_FILES += \
@@ -149,20 +146,19 @@ PRODUCT_COPY_FILES += \
 # We have enough storage space to hold precise GC data
 PRODUCT_TAGS += dalvik.gc.type-precise
 
-# EGL config
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/config/egl.cfg:system/lib/egl/egl.cfg
-
 # QCOM Display
 PRODUCT_PROPERTY_OVERRIDES += \
-    com.qc.hardware=true \
-    debug.qc.hardware=true \
-    debug.composition.type=dyn \
-    debug.egl.hw=1 \
     debug.sf.hw=1 \
+    debug.egl.hw=1 \
+    debug.composition.type=gpu \
     dev.pm.dyn_samplingrate=1 \
+    dev.pm.gpu_samplingrate=1 \
+    debug.enable.wl_log=1
+    persist.hwc.mdpcomp.enable=true \
     debug.mdpcomp.logs=0 \
-    persist.hwc.mdpcomp.enable=true
+    hw.trueMirrorSupported=1 \
+    ro.hwui.text_cache_width=2048 \
+    debug.enabletr=0
 
 # QCOM Display
 PRODUCT_PACKAGES += \
@@ -199,7 +195,6 @@ PRODUCT_PACKAGES += libnetcmdiface
 # Symlinks
 PRODUCT_PACKAGES += \
     libxml2 \
-    libxt_native.so \
     mbhc.bin \
     wcd9310_anc.bin \
     WCNSS_qcom_wlan_nv.bin
@@ -211,6 +206,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
 # QCOM
 PRODUCT_PROPERTY_OVERRIDES += \
     com.qc.hardware=true
+    debug.com.qc.hardware=true
 
 # Audio
 PRODUCT_PROPERTY_OVERRIDES += \
@@ -235,12 +231,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
     tunnel.audiovideo.decode=true \
     qcom.hw.aac.encoder=true \
     af.resampler.quality=255 \
-    persist.audio.lowlatency.rec=false \
-    ro.opengles.version=131072
-
-# Misc
-PRODUCT_PROPERTY_OVERRIDES += \
-    persist.fuse_sdcard=true
+    persist.audio.lowlatency.rec=false
 
 # WiFi
 PRODUCT_PROPERTY_OVERRIDES += \
@@ -257,6 +248,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
     ro.ril.transmitpower=true \
     persist.radio.apm_sim_not_pwdn=1 \
     persist.radio.call_type=1 \
-    ro.config.vc_call_vol_steps=7
+    ro.config.vc_call_vol_steps=7 \
+    ro.modem.no_wdog_chk=1
 
 PRODUCT_BUILD_PROP_OVERRIDES += BUILD_UTC_DATE=0
